@@ -1,9 +1,21 @@
 #!/usr/bin/env bash
-# bash script to install nginx web server & make the following configurations:
+# This script installs and configures Nginx web server on Ubuntu
+# to listen on port 80 and serve "Holberton School" at root URL
 
-sudo apt-get update -y
-sudo apt-get install nginx -y
-sudo ufw allow 'Nginx HTTP'
-sudo echo "Holberton School" > /var/www/html/index.html
-sudo service nginx restart
-sudo service nginx reload
+# Update package lists and install Nginx
+apt-get update -y
+apt-get install nginx -y
+
+# Configure the default page
+echo "Holberton School" > /var/www/html/index.html
+
+# Restart Nginx (using service, not systemctl)
+service nginx restart
+
+# Verify the installation
+if ! curl -s localhost | grep -q "Holberton School"; then
+    echo "Configuration failed" >&2
+    exit 1
+fi
+
+exit 0
