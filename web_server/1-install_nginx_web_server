@@ -6,16 +6,57 @@
 apt-get update -y
 apt-get install nginx -y
 
+# Stop any existing Nginx service
+service nginx stop
+
 # Configure the default page
+mkdir -p /var/www/html
 echo "Holberton School" > /var/www/html/index.html
 
-# Restart Nginx (using service, not systemctl)
-service nginx restart
+# Ensure default config listens on port 80
+cat > /etc/nginx/sites-available/default <<EOF
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    
+    root /var/www/html;
+    index index.html;
+    
+    server_name _;
+    
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+EOF
 
-# Verify the installation
-if ! curl -s localhost | grep -q "Holberton School"; then
-    echo "Configuration failed" >&2
+# Enable the configuration
+ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+
+# Test configuration and start Nginx
+nginx -t && service nginx start
+
+# Verify installation
+STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" localhost)
+PAGE_CONTENT=$(curl -s localhost)
+
+if [ "$STATUS_CODE" != "200" ]; then
+    echo "Error: Nginx not returning 200 status code" >&2
     exit 1
 fi
+
+if [[ "$PAGE_CONTENT" != *"Holberton School"* ]]; then
+    echo "Error: Page content doesn't contain 'Holberton School'" >&2
+    exit 1
+fi
+
+if ! pgrep nginx >/dev/null; then
+    echo "Error: Nginx process not running" >&2
+    exit 1
+fi
+
+echo "Nginx successfully configured:"
+echo "- Status code: $STATUS_CODE"
+echo "- Content: $PAGE_CONTENT"
 
 exit 0
