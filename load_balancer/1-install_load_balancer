@@ -26,8 +26,8 @@ frontend http_front
 
 backend http_back
     balance roundrobin
-    server web-01 3.83.140.35:80 check
-    server web-02 18.234.165.101:80 check
+    server web-01 web-01:80 check
+    server web-02 web-02:80 check
 EOF'
 
 # Enable HAProxy
@@ -36,8 +36,9 @@ sudo sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/haproxy
 # Start HAProxy
 sudo systemctl restart haproxy
 
-# Output to verify that the names web-01 and web-02 are used in the backend configuration
+# Verify configuration
 echo "Checking HAProxy configuration..."
-curl -Is http://localhost | grep X-Served-By
+echo "Backend servers configured:"
+grep "server web-" /etc/haproxy/haproxy.cfg
 
-echo "HAProxy installation and configuration complete. Traffic is now load balanced between web-01 and web-02."i
+echo "HAProxy installation and configuration complete. Traffic is now load balanced between web-01 and web-02."
