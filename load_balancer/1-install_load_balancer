@@ -1,44 +1,49 @@
 #!/usr/bin/env bash
-# Install and configure HAProxy load balancer
+# Create a script to install and configure HAProxy on lb-01 server
+# Configure HAProxy to send traffic to web-01 and web-02 servers
+# Distribute requests using a roundrobin algorithm
+# Make sure that HAProxy can be managed via an init script
 
-# Update packages
-sudo apt-get update -y
+# Update system and install HAProxy
+sudo apt-get -y update
+sudo apt-get -y install haproxy
 
-# Install HAProxy
-sudo apt-get install -y haproxy
+# Backup the original haproxy.cfg in case something goes wrong
+sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak
 
-# Configure HAProxy
-sudo bash -c 'cat > /etc/haproxy/haproxy.cfg << EOF
-global
-    daemon
-    maxconn 100
-    log /dev/log local0
+# Clean the haproxy.cfg (optional step, if needed)
+# sudo truncate -s 0 /etc/haproxy/haproxy.cfg
 
-defaults
-    mode http
-    timeout connect 5000ms
-    timeout client 50000ms
-    timeout server 50000ms
+# Check if the configuration for frontend and backend exists
+if ! grep -q "frontend dgisanura-frontend" /etc/haproxy/haproxy.cfg; then
+    # Add frontend and backend configuration
+    server_config="frontend dgisanura-frontend
+        bind *:80
+        mode http
+        default_backend dgisanura-backend
 
-frontend http_front
-    bind *:80
-    default_backend http_back
+    backend dgisanura-backend
+        balance roundrobin
+        server 6282-web-01 3.83.140.35 check
+        server 6282-web-02 18.234.165.101 check"
+    
+    # Append the configuration to haproxy.cfg
+    echo "$server_config" | sudo tee -a /etc/haproxy/haproxy.cfg
+else
+    echo "Frontend and Backend configuration already exists in haproxy.cfg."
+fi
 
-backend http_back
-    balance roundrobin
-    server web-01 web-01:80 check
-    server web-02 web-02:80 check
-EOF'
+# Enable HAProxy to start on boot
+echo "ENABLED=1" | sudo tee -a /etc/default/haproxy
 
-# Enable HAProxy
-sudo sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/haproxy
+# Restart HAProxy service
+sudo service haproxy restart
 
-# Start HAProxy
-sudo systemctl restart haproxy
+# Check if HAProxy service is running
+sudo systemctl status haproxy
 
-# Verify configuration
+# Output to verify that the names web-01 and web-02 are used in the backend configuration
 echo "Checking HAProxy configuration..."
-echo "Backend servers configured:"
-grep "server web-" /etc/haproxy/haproxy.cfg
+curl -Is http://localhost | grep X-Served-By
 
 echo "HAProxy installation and configuration complete. Traffic is now load balanced between web-01 and web-02."
